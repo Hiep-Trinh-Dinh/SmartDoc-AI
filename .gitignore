@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+
+# Virtual environments
+venv/
+.venv/
+
+# Local env
+.env
+
+# App/runtime artifacts (do not commit)
+data/hf_cache/
+data/faiss/
+data/uploads/
+
+# Optional: common large artifacts
+*.faiss
+*.pkl
+*.safetensors

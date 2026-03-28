@@ -1,0 +1,26 @@
+streamlit>=1.32
+
+# LangChain (RAG)
+langchain>=0.2
+langchain-community>=0.2
+langchain-text-splitters>=0.2
+
+# Ollama integration (new LangChain package)
+langchain-ollama>=0.1.0
+
+# Vector search (FAISS)
+faiss-cpu
+
+# Embeddings (HF)
+sentence-transformers>=2.6
+transformers>=4.41
+torch
+
+# PDF
+pdfplumber>=0.11
+pypdf>=4.2
+
+# Utils
+langdetect>=1.0.9
+numpy
+pandas
