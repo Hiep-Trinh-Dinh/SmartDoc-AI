@@ -34,5 +34,20 @@ def load_or_create_vector_store(docs, embedding, persist_dir: str) -> FAISS:
     return vector_db
 
 
-def get_retriever(vector_db: FAISS, k: int = 3):
-    return vector_db.as_retriever(search_kwargs={"k": k})
+def get_retriever(
+    vector_db: FAISS,
+    k: int = 3,
+    *,
+    search_type: str = "similarity",
+    fetch_k: int | None = None,
+    lambda_mult: float | None = None,
+):
+    search_kwargs: dict = {"k": k}
+    if fetch_k is not None:
+        search_kwargs["fetch_k"] = int(fetch_k)
+    if lambda_mult is not None:
+        search_kwargs["lambda_mult"] = float(lambda_mult)
+
+    # LangChain supports different search types depending on vector store.
+    # FAISS retriever commonly supports: "similarity" and "mmr".
+    return vector_db.as_retriever(search_type=search_type, search_kwargs=search_kwargs)

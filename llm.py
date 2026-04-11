@@ -15,7 +15,7 @@ def get_llm(
     base_url: str | None = None,
     temperature: float | None = None,
 ):
-    model = model or os.getenv("OLLAMA_MODEL", "qwen2.5:7b")
+    model = model or os.getenv("OLLAMA_MODEL", "qwen2.5:3b")
     base_url = base_url or os.getenv("OLLAMA_BASE_URL")
     temperature = 0.0 if temperature is None else temperature
 

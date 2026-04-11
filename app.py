@@ -53,8 +53,14 @@ def _build_index_for_upload(file_bytes: bytes, file_name: str):
         raise ValueError("Không tách được văn bản từ PDF (chunking trả về rỗng).")
 
     vector_db = load_or_create_vector_store(chunks, embedding, str(persist_dir))
-    retriever = get_retriever(vector_db, k=3)
-    return doc_hash, retriever
+
+    # Two retrieval strategies: fast similarity + diversity-biased MMR.
+    # These can be executed in parallel inside rag_pipeline.ask_question().
+    retrievers = [
+        get_retriever(vector_db, k=3, search_type="similarity"),
+        get_retriever(vector_db, k=5, search_type="mmr", fetch_k=20, lambda_mult=0.5),
+    ]
+    return doc_hash, retrievers
 
 
 if uploaded_file is None:
