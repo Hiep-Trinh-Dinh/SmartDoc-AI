@@ -1,0 +1,6 @@
+# Reduce noisy import-time scanning of large libs (e.g., transformers)
+# and avoid optional deps like torchvision being imported by the watcher.
+
+[server]
+fileWatcherType = "none"
+runOnSave = false
