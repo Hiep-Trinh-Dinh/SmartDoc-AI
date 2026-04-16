@@ -18,6 +18,14 @@ Hệ thống hỏi-đáp tài liệu PDF chạy **offline/local** theo mô hình
 py -m pip install -r requirements.txt
 ```
 
+## OCR cho PDF scan (tuỳ chọn)
+Nếu PDF là ảnh/scanned (không có text extractable), app sẽ fallback sang OCR và **cần cài Tesseract OCR** (đây là phần mềm hệ thống, không phải package pip).
+
+Windows (cách phổ biến):
+- Cài Tesseract OCR.
+- Đảm bảo chạy được lệnh `tesseract --version` trong terminal **hoặc** đặt biến môi trường `TESSERACT_CMD` trỏ tới file exe (thường là `C:\Program Files\Tesseract-OCR\tesseract.exe`).
+- Nếu OCR tiếng Việt, đảm bảo có language data `vie.traineddata` trong thư mục `tessdata` và dùng `OCR_LANG=vie+eng` (mặc định).
+
 ## Cài và chạy Ollama + model
 1. Cài Ollama: https://ollama.com
 2. Pull model:

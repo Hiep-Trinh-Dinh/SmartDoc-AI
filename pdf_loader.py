@@ -1,15 +1,12 @@
 from __future__ import annotations
-import pytesseract
 
 import os
 import re
+import shutil
 import unicodedata
 
 from langchain_core.documents import Document
 from langchain_community.document_loaders import PDFPlumberLoader, PyPDFLoader
-
-
-pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
 try:
     import pypdfium2 as pdfium
@@ -60,9 +57,57 @@ def _should_ocr_page(text: str, min_chars: int = 40) -> bool:
 def _configure_tesseract() -> None:
     if pytesseract is None:
         return
-    tesseract_cmd = os.getenv("TESSERACT_CMD")
+
+    tesseract_cmd = (os.getenv("TESSERACT_CMD") or "").strip()
     if tesseract_cmd:
+        if not os.path.exists(tesseract_cmd):
+            raise RuntimeError(
+                "Không tìm thấy Tesseract tại `TESSERACT_CMD`. "
+                "Hãy trỏ đúng tới file tesseract.exe (Windows thường là "
+                "C:\\Program Files\\Tesseract-OCR\\tesseract.exe)."
+            )
         pytesseract.pytesseract.tesseract_cmd = tesseract_cmd
+        return
+
+    # Try PATH first.
+    which = shutil.which("tesseract")
+    if which:
+        pytesseract.pytesseract.tesseract_cmd = which
+        return
+
+    # Common Windows install locations (handles cases where PowerShell can run tesseract
+    # via an alias/function but Python can't resolve it via PATH).
+    candidates: list[str] = []
+    program_files = os.environ.get("ProgramFiles")
+    program_files_x86 = os.environ.get("ProgramFiles(x86)")
+    local_app_data = os.environ.get("LocalAppData")
+
+    if program_files:
+        candidates.append(os.path.join(program_files, "Tesseract-OCR", "tesseract.exe"))
+    if program_files_x86:
+        candidates.append(os.path.join(program_files_x86, "Tesseract-OCR", "tesseract.exe"))
+    if local_app_data:
+        candidates.append(os.path.join(local_app_data, "Programs", "Tesseract-OCR", "tesseract.exe"))
+
+    for candidate in candidates:
+        if candidate and os.path.exists(candidate):
+            pytesseract.pytesseract.tesseract_cmd = candidate
+            return
+
+    if os.name == "nt":
+        raise RuntimeError(
+            "Tesseract OCR chưa được cài hoặc không nằm trong PATH.\n\n"
+            "Cách khắc phục (Windows):\n"
+            "1) Cài Tesseract OCR.\n"
+            "2) Thêm thư mục cài đặt vào PATH, hoặc đặt biến môi trường `TESSERACT_CMD` tới "
+            "C:\\Program Files\\Tesseract-OCR\\tesseract.exe.\n"
+            "3) Nếu dùng `OCR_LANG=vie+eng` hãy đảm bảo có `vie.traineddata` trong thư mục tessdata."
+        )
+
+    raise RuntimeError(
+        "Tesseract OCR chưa được cài hoặc không nằm trong PATH. "
+        "Hãy cài `tesseract` và đảm bảo lệnh `tesseract` chạy được từ terminal."
+    )
 
 
 def _ocr_page_text(image, lang: str) -> str:
@@ -71,7 +116,16 @@ def _ocr_page_text(image, lang: str) -> str:
             "Thiếu pytesseract. Hãy cài dependencies OCR và Tesseract OCR để đọc PDF dạng ảnh."
         )
     _configure_tesseract()
-    return pytesseract.image_to_string(image, lang=lang)
+    try:
+        return pytesseract.image_to_string(image, lang=lang)
+    except Exception as exc:
+        msg = str(exc)
+        if "Error opening data file" in msg or "Failed loading language" in msg:
+            raise RuntimeError(
+                "Tesseract đã cài nhưng thiếu language data cho OCR. "
+                "Thử đặt `OCR_LANG=eng` hoặc cài thêm `vie.traineddata` (và các ngôn ngữ bạn dùng) vào tessdata."
+            ) from exc
+        raise RuntimeError(f"OCR thất bại: {msg}") from exc
 
 
 def _ocr_pdf_pages(file_path: str, page_numbers: set[int], lang: str = "vie+eng") -> dict[int, str]:

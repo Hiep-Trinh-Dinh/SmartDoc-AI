@@ -8,6 +8,8 @@ try:
     from langdetect import detect as _detect
 except Exception:  # langdetect missing or misinstalled
     _detect = None
+
+
 def _generate_sub_queries(query: str) -> list[str]:
     return [
         query,
@@ -16,44 +18,73 @@ def _generate_sub_queries(query: str) -> list[str]:
     ]
 
 
-def ask_corag(query: str, retriever, llm, max_context_chars: int = 12000):
+def ask_corag(
+    query: str,
+    retriever,
+    llm,
+    max_context_chars: int = 12000,
+    *,
+    chat_history: str | None = None,
+    retrieval_query: str | None = None,
+):
     retrievers = list(retriever) if isinstance(retriever, (list, tuple)) else [retriever]
 
-    sub_queries = _generate_sub_queries(query)
+    base_query = retrieval_query or query
+    sub_queries = _generate_sub_queries(base_query)
 
-    all_docs = []
+    all_docs: list[Any] = []
     for q in sub_queries:
         docs = _get_relevant_docs_multi(
             retrievers,
             q,
-            parallel=True
+            parallel=True,
         )
         all_docs.extend(docs)
 
     docs = _dedupe_docs(all_docs)
 
-    context = "\n\n".join([
-        (d.page_content or "").strip()
-        for d in docs if (d.page_content or "").strip()
-    ])[:max_context_chars]
+    context = "\n\n".join(
+        [(d.page_content or "").strip() for d in docs if (d.page_content or "").strip()]
+    )[:max_context_chars]
 
-    prompt = _build_prompt(context=context, query=query, lang=_safe_detect_language(query))
+    prompt = _build_prompt(
+        context=context,
+        query=query,
+        lang=_safe_detect_language(query),
+        chat_history=chat_history,
+    )
     return llm.invoke(prompt)
 
-def ask_rag(query: str, retriever, llm, max_context_chars: int = 12000):
+
+def ask_rag(
+    query: str,
+    retriever,
+    llm,
+    max_context_chars: int = 12000,
+    *,
+    chat_history: str | None = None,
+    retrieval_query: str | None = None,
+):
+    base_query = retrieval_query or query
     docs = _get_relevant_docs_multi(
         [retriever[0]] if isinstance(retriever, (list, tuple)) else [retriever],
-        query,
-        parallel=False
+        base_query,
+        parallel=False,
     )
 
-    context = "\n\n".join([
-        (d.page_content or "").strip()
-        for d in docs if (d.page_content or "").strip()
-    ])[:max_context_chars]
+    context = "\n\n".join(
+        [(d.page_content or "").strip() for d in docs if (d.page_content or "").strip()]
+    )[:max_context_chars]
 
-    prompt = _build_prompt(context=context, query=query, lang=_safe_detect_language(query))
+    prompt = _build_prompt(
+        context=context,
+        query=query,
+        lang=_safe_detect_language(query),
+        chat_history=chat_history,
+    )
     return llm.invoke(prompt)
+
+
 def _safe_detect_language(text: str) -> str:
     text = (text or "").strip()
     if not text:
@@ -141,19 +172,34 @@ def _get_relevant_docs_multi(
     return _dedupe_docs(merged)
 
 
-def _build_prompt(context: str, query: str, lang: str) -> str:
+def _build_prompt(context: str, query: str, lang: str, chat_history: str | None = None) -> str:
+    history = (chat_history or "").strip()
     if lang == "vi":
+        history_block = (
+            "Lịch sử chat (chỉ để hiểu tham chiếu như 'đoạn đó', 'nó'; không phải nguồn sự thật):\n"
+            f"{history}\n\n"
+            if history
+            else ""
+        )
         return (
             "Bạn là trợ lý hỏi-đáp tài liệu. Chỉ dùng THÔNG TIN trong Context để trả lời. "
             "Nếu Context không đủ thông tin, hãy nói rõ bạn không tìm thấy trong tài liệu.\n\n"
+            f"{history_block}"
             f"Context:\n{context}\n\n"
             f"Câu hỏi: {query}\n"
             "Trả lời (ngắn gọn, đúng trọng tâm):"
         )
-    # default to English
+
+    history_block = (
+        "Chat history (only to resolve references like 'that section'; not a source of facts):\n"
+        f"{history}\n\n"
+        if history
+        else ""
+    )
     return (
         "You are a document QA assistant. Answer ONLY using the information in the Context. "
         "If the Context is insufficient, say you couldn't find it in the document.\n\n"
+        f"{history_block}"
         f"Context:\n{context}\n\n"
         f"Question: {query}\n"
         "Answer (concise, factual):"
@@ -167,6 +213,9 @@ def ask_question(
     max_context_chars: int = 12000,
     parallel_retrieval: bool | None = None,
     max_retrieval_workers: int | None = None,
+    *,
+    chat_history: str | None = None,
+    retrieval_query: str | None = None,
 ):
     lang = _safe_detect_language(query)
 
@@ -186,9 +235,10 @@ def ask_question(
         except Exception:
             max_retrieval_workers = None
 
+    base_query = retrieval_query or query
     docs = _get_relevant_docs_multi(
         retrievers,
-        query,
+        base_query,
         parallel=bool(parallel_retrieval),
         max_workers=max_retrieval_workers,
     )
@@ -196,5 +246,5 @@ def ask_question(
     if len(context) > max_context_chars:
         context = context[:max_context_chars]
 
-    prompt = _build_prompt(context=context, query=query, lang=lang)
+    prompt = _build_prompt(context=context, query=query, lang=lang, chat_history=chat_history)
     return llm.invoke(prompt)

@@ -20,6 +20,11 @@ torch
 pdfplumber>=0.11
 pypdf>=4.2
 
+# OCR (optional fallback for scanned PDFs)
+pytesseract>=0.3.10
+pypdfium2>=4.30.0
+pillow>=10.0
+
 # Utils
 langdetect>=1.0.9
 numpy
