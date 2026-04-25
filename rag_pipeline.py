@@ -8,12 +8,14 @@ try:
     from langdetect import detect as _detect
 except Exception:  # langdetect missing or misinstalled
     _detect = None
-def _generate_sub_queries(query: str) -> list[str]:
-    return [
+def _generate_sub_queries(query: str):
+    return list(set([
         query,
-        f"Explain in detail: {query}",
-        f"Provide technical explanation: {query}",
-    ]
+        f"What is {query}?",
+        f"Key concepts of {query}",
+        f"Examples of {query}",
+        f"Limitations of {query}",
+    ]))
 
 
 def ask_corag(query: str, retriever, llm, max_context_chars: int = 12000):
