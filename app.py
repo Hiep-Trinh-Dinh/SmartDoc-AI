@@ -18,7 +18,7 @@ st.title("📄 SmartDoc AI")
 st.caption("Upload PDF/DOCX → hỏi đáp theo nội dung tài liệu (với Hybrid Search & Re-ranking)")
 mode = st.radio(
     "Chế độ",
-    ["RAG", "Co-RAG", "Hybrid RAG", "Self-RAG", "So sánh"]
+    ["RAG", "Co-RAG", "So sánh"]
 )
 
 DATA_DIR = Path(__file__).resolve().parent / "data"
