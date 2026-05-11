@@ -201,11 +201,24 @@ try:
         st.error("Retriever chưa sẵn sàng.")
         st.stop()
     if "session_id" not in st.session_state:
+        # Tạo session_id ổn định cho lần khởi tạo app/tab này.
+        # Không tạo lại ở các lần rerun.
         st.session_state.session_id = str(uuid.uuid4())
 
 except Exception as exc:
     st.error(f"Lỗi xử lý tài liệu: {exc}")
     st.stop()
+
+# Control new session explicitly (tạo session mới theo nút, không reset ngoài ý muốn)
+if "new_chat_requested" not in st.session_state:
+    st.session_state.new_chat_requested = False
+
+with st.sidebar:
+    if st.button("➕ New chat"):
+        st.session_state.new_chat_requested = True
+        st.session_state.session_id = str(uuid.uuid4())
+        st.rerun()
+
 
 
 def display_answer_with_sources(answer, docs):

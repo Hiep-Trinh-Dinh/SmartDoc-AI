@@ -54,7 +54,9 @@ def _load_pdf_text(file_path: str):
 
 
 def _should_ocr_page(text: str, min_chars: int = 40) -> bool:
-    return len(_clean_page_text(text)) < min_chars
+    # Giữ hàm để tương thích, nhưng với yêu cầu hiện tại sẽ OCR mọi trang.
+    return True
+
 
 
 def _configure_tesseract() -> None:
@@ -96,12 +98,11 @@ def _ocr_pdf_pages(file_path: str, page_numbers: set[int], lang: str = "vie+eng"
 
 
 def _merge_text_with_ocr(docs, file_path: str):
+    # Yêu cầu: luôn luôn OCR mọi trang.
     page_numbers_to_ocr: set[int] = set()
-
     for index, doc in enumerate(docs):
         page_number = (doc.metadata or {}).get("page", index)
-        if _should_ocr_page(doc.page_content or ""):
-            page_numbers_to_ocr.add(int(page_number))
+        page_numbers_to_ocr.add(int(page_number))
 
     if not page_numbers_to_ocr:
         return docs
@@ -109,15 +110,36 @@ def _merge_text_with_ocr(docs, file_path: str):
     ocr_lang = os.getenv("OCR_LANG", "vie+eng")
     ocr_results = _ocr_pdf_pages(file_path, page_numbers_to_ocr, lang=ocr_lang)
 
+    def _merge_lines(existing: str, ocr: str) -> str:
+        existing_clean = _clean_page_text(existing)
+        ocr_clean = _clean_page_text(ocr)
+        if not existing_clean:
+            return ocr_clean
+        if not ocr_clean:
+            return existing_clean
+
+        existing_lines = existing_clean.splitlines()
+        ocr_lines = ocr_clean.splitlines()
+
+        # Ưu tiên giữ thứ tự lines đã extract từ PDF, và chèn thêm các line OCR bị thiếu.
+        # Không có bbox nên đây là cách merge “đúng vị trí” theo thứ tự dòng.
+        existing_set = set(existing_lines)
+        merged_lines = list(existing_lines)
+        for ln in ocr_lines:
+            if ln and ln not in existing_set:
+                merged_lines.append(ln)
+        return "\n".join([ln for ln in merged_lines if ln]).strip()
+
     merged_docs = []
     for index, doc in enumerate(docs):
         page_number = int((doc.metadata or {}).get("page", index))
         existing_text = _clean_page_text(doc.page_content or "")
         ocr_text = ocr_results.get(page_number, "")
-        final_text = existing_text if not _should_ocr_page(existing_text) else ocr_text or existing_text
+        final_text = _merge_lines(existing_text, ocr_text)
         merged_docs.append(Document(page_content=final_text, metadata=dict(doc.metadata or {})))
 
     return merged_docs
+
 
 def load_pdf(file_path: str):
     """Load a PDF into LangChain Documents.

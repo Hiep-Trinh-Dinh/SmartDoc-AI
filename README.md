@@ -37,7 +37,7 @@ Mở trình duyệt tại: http://localhost:8501
 - FAISS index được cache theo hash trong `data/faiss/` để lần sau mở lại nhanh hơn
 
 ## Cấu hình (tuỳ chọn)
-- `OLLAMA_MODEL` (mặc định: `qwen2.5:7b`)
+- `OLLAMA_MODEL` (mặc định: `qwen2.5:3b`)
 - `OLLAMA_BASE_URL` (nếu Ollama chạy remote)
 - `EMBEDDING_MODEL` (mặc định: `sentence-transformers/paraphrase-multilingual-mpnet-base-v2`)
 - `EMBEDDING_DEVICE` (ví dụ: `cpu` hoặc `cuda`)
